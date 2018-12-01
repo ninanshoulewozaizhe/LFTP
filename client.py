@@ -4,6 +4,7 @@ import socket
 import threading
 import time
 import binascii 
+import numpy as np
 from constant import const
 
 class Receive(object):
@@ -70,11 +71,16 @@ class Receive(object):
             self.lock.release()
             if rwnd == 0:
                 continue
+            
             # get data
-            # if self.server:
             self.recvData, self.sendAddr = self.sc.recvfrom(2 * const.MMS)
-            # else:
-            #     self.recvData = self.sc.recv(2 * const.MMS)
+            
+            # #drop packet test
+            # rand = np.random.random()
+            # if rand > 0.9:
+            #     print("drop the packet test, the rand is {}".format(rand))
+            #     continue
+
             temp = self.recvData.split(const.DELIMITER)
             if temp[0] == ' ':
                 #set lock
@@ -85,7 +91,8 @@ class Receive(object):
                 print("update rwnd for server")
                 print(resData)
                 continue
-            if self.ACK + 1 == int(temp[0]):
+            sendACK = (int(temp[0]))
+            if self.ACK + 1 == sendACK:
                 #set lock
                 self.lock.acquire()
                 self.receiverQueue.append(temp[1])
@@ -101,10 +108,10 @@ class Receive(object):
             # response
             #set lock
             self.lock.acquire()
-            # rwnd = self.receiveBuffer - (self.lastRcvd - self.lastRead)
+            rwnd = self.receiveBuffer - (self.lastRcvd - self.lastRead)
             print("lastRcvd: {}, lastRead: {}".format(self.lastRcvd, self.lastRead))
+            resData = "ACK" + const.DELIMITER + str(sendACK) + const.DELIMITER + "rwndSize" + const.DELIMITER + str(rwnd)
             self.lock.release()
-            resData = "ACK" + const.DELIMITER + str(self.ACK) + const.DELIMITER + "rwndSize" + const.DELIMITER + str(rwnd)
             self.sc.sendto(resData, self.sendAddr)
             print("response: {}".format(resData))
 
@@ -138,6 +145,6 @@ class Receive(object):
 # s.sendto(b'10', ('127.0.0.1', 9999))
 # print(s.recv(1024).decode('utf-8'))
 
-test = Receive('127.0.0.1', 1111, False, 10)
-test.openFile('AIChinese.pdf')
+test = Receive('47.107.126.23', 2222, False, 5)
+test.openFile("../js.pdf")
 test.Start()

@@ -83,10 +83,11 @@ class Send(object):
             send = self.send
             self.lock.release()
             # print("before send: rwnd: {} cwnd: {}".format(self.rwnd, self.cwnd))
-            print("send is {}".format(str(send)))
+            # print("send is {}".format(str(send)))
             if sendSize == 0:
                 self.sc.sendto(' ', self.sendAddr)
                 print("rwnd is 0, send a small MMS to get new rwnd")
+                time.sleep(0.01)
             elif send:
                 for size in range(int(sendSize)):
                     # judge the sender can send or not. satisfy the buffers of itself and receiver 
@@ -99,7 +100,7 @@ class Send(object):
                             self.endReading = const.JOBDONE
                         # send the queueNum + data
                         data = str(self.queueNextNum) + const.DELIMITER + data + const.DELIMITER + str(self.endReading)
-                        print("send queueNum: {} ".format(self.queueNextNum))
+                        print("\nsend ACK: {} ".format(self.queueNextNum))
                         # set lock
                         self.lock.acquire()
                         self.sc.sendto(data, self.sendAddr)
@@ -108,6 +109,8 @@ class Send(object):
                             self.timerStart(self.timecancel)
                         self.queueNextNum += 1
                         self.lock.release()
+                        if self.endReading == const.JOBDONE:
+                            break
                 # set lock
                 self.lock.acquire()
                 self.send = False
@@ -120,6 +123,8 @@ class Send(object):
 
     def Resend(self, fastRecover):
         print("resend")
+        if not fastRecover:
+            print("time out")
         self.timerStart(self.timecancel)
         # set lock
         self.lock.acquire()
@@ -128,13 +133,16 @@ class Send(object):
             temp = data.split(const.DELIMITER)
             print("send ACK:{} endreading:{}".format(temp[0], temp[2]))
             self.sc.sendto(data, self.sendAddr)
-        self.lock.release()
         # change congestion state
         if not fastRecover:
             self.congestionState = const.C_SLOWSTART
-            self.ssthresh = self.cwnd / 2
+            if self.cwnd < 10:
+                self.ssthresh = 5.0
+            else:
+                self.ssthresh = self.cwnd / 2
             self.cwnd = 5.0
             self.dupACKcount = 0
+        self.lock.release()
         
     
     def getNewACK(self):
@@ -144,9 +152,8 @@ class Send(object):
         self.lock.acquire()
         del self.sendQueue[0]
         self.queueBase += 1
-        # set timer state
-        self.send = True
         self.lock.release()
+        # set timer state
         self.dupACKcount = 0
         if self.queueNextNum == self.queueBase:
             self.timer.cancel()
@@ -160,8 +167,15 @@ class Send(object):
         print("get dupACK")
         self.dupACKcount += 1
         if self.dupACKcount == 3:
-            self.ssthresh = self.cwnd / 2
-            self.cwnd = self.cwnd / 2 + 3
+            # set lock
+            self.lock.acquire()
+            if self.cwnd < 10:
+                self.ssthresh = 5.0
+                self.cwnd = 8.0
+            else:
+                self.ssthresh = self.cwnd / 2
+                self.cwnd = self.cwnd / 2 + 3
+            self.lock.release()
             self.Resend(True)
             self.congestionState = const.C_FASTRECOVERY
 
@@ -186,7 +200,7 @@ class Send(object):
             self.rwnd = int(temp[3])
             print(ACKnum)
             if ACKnum == const.UPDATERWND:
-                print("update ACKnum\n")
+                print("update ACKnum")
                 # set lock
                 self.lock.acquire()
                 self.send = True
@@ -196,15 +210,20 @@ class Send(object):
 
             # congestion control   
             # slow-fast
+            print("congestionState: {}".format(self.congestionState))
             if self.congestionState == const.C_SLOWSTART:
                 if ACKnum == self.queueBase:
                     self.getNewACK()
+                    #set lock
+                    self.lock.acquire()
+                    self.send = True
                     # update cwnd
                     if self.cwnd + 1 < self.ssthresh:
                         self.cwnd += 1
                     else:
                         self.cwnd = self.ssthresh
                         self.congestionState = const.C_CAVOID
+                    self.lock.release()
                     print("update cwnd: {}".format(self.cwnd))
                 else:
                     self.getDupACK()
@@ -213,25 +232,32 @@ class Send(object):
             elif self.congestionState == const.C_CAVOID:
                 if ACKnum == self.queueBase:
                     self.getNewACK()
+                    #set lock
+                    self.lock.acquire()
+                    self.send = True
                     # update cwnd
                     self.cwnd += 1.0 / int(self.cwnd)
+                    self.lock.release()
                 else:
                     self.getDupACK()
 
             # fast-recovery
             else:
                 if ACKnum == self.queueBase:
-                    self.cwnd = self.ssthresh
-                    self.dupACKcount = 0
-                    self.congestionState = const.C_CAVOID
-                else:
-                    self.cwnd += 1
+                    self.getNewACK()
                     # set lock
                     self.lock.acquire()
+                    self.cwnd = self.ssthresh
+                    self.lock.release()
+                    self.congestionState = const.C_CAVOID
+                else:
+                    # set lock
+                    self.lock.acquire()
+                    self.cwnd += 1
                     self.send = True
                     self.lock.release()
             print("cwnd: {}, ssthresh: {}".format(self.cwnd, self.ssthresh))
 
-test = Send('127.0.0.1', 1111, True, 10)
-test.openFile("D:/AIChinese.pdf")
+test = Send('47.107.126.23', 2222, True, 5)
+test.openFile("C:/DownloadSoftware/LearningMaterials/js.pdf")
 test.Start()
