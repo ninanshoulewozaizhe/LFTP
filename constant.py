@@ -14,7 +14,7 @@ class Const(object):
         self.__dict__[name] = value
 
 const = Const()
-const.MMS = 1024
+const.MMS = 5000
 const.DELIMITER = '|-|:|:|-|'
 
 const.C_SLOWSTART = 0

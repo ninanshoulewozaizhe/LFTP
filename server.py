@@ -77,13 +77,17 @@ class Send(object):
     def sendData(self):
         while True:
             # get the reveiver the dataSize can get
+            #set lock
+            self.lock.acquire()
             sendSize = np.min([self.rwnd, self.cwnd])
+            send = self.send
+            self.lock.release()
             # print("before send: rwnd: {} cwnd: {}".format(self.rwnd, self.cwnd))
-            # print("send is {}".format(self.send))
+            print("send is {}".format(str(send)))
             if sendSize == 0:
                 self.sc.sendto(' ', self.sendAddr)
                 print("rwnd is 0, send a small MMS to get new rwnd")
-            elif self.send:
+            elif send:
                 for size in range(int(sendSize)):
                     # judge the sender can send or not. satisfy the buffers of itself and receiver 
                     # flow control
@@ -95,16 +99,19 @@ class Send(object):
                             self.endReading = const.JOBDONE
                         # send the queueNum + data
                         data = str(self.queueNextNum) + const.DELIMITER + data + const.DELIMITER + str(self.endReading)
-                        self.sc.sendto(data, self.sendAddr)
                         print("send queueNum: {} ".format(self.queueNextNum))
                         # set lock
-                        # self.lock.acquire()
+                        self.lock.acquire()
+                        self.sc.sendto(data, self.sendAddr)
                         self.sendQueue.append(data)
                         if self.queueNextNum == self.queueBase:
                             self.timerStart(self.timecancel)
                         self.queueNextNum += 1
-                        # self.lock.release()
+                        self.lock.release()
+                # set lock
+                self.lock.acquire()
                 self.send = False
+                self.lock.release()
                 if self.endReading == const.JOBDONE:
                     break
                
@@ -115,13 +122,13 @@ class Send(object):
         print("resend")
         self.timerStart(self.timecancel)
         # set lock
-        # self.lock.acquire()
+        self.lock.acquire()
         print(len(self.sendQueue))
         for data in self.sendQueue:
             temp = data.split(const.DELIMITER)
             print("send ACK:{} endreading:{}".format(temp[0], temp[2]))
             self.sc.sendto(data, self.sendAddr)
-        # self.lock.release()
+        self.lock.release()
         # change congestion state
         if not fastRecover:
             self.congestionState = const.C_SLOWSTART
@@ -132,14 +139,15 @@ class Send(object):
     
     def getNewACK(self):
         # set lock
-        # self.lock.acquire()
         print("get newACK")
+        print(len(self.sendQueue))
+        self.lock.acquire()
         del self.sendQueue[0]
         self.queueBase += 1
-        # self.lock.release()
-        self.dupACKcount = 0
         # set timer state
         self.send = True
+        self.lock.release()
+        self.dupACKcount = 0
         if self.queueNextNum == self.queueBase:
             self.timer.cancel()
             self.timecancel = True
@@ -165,7 +173,7 @@ class Send(object):
             # else:
             #     self.recvData = self.sc.recv(const.MMS)
             temp = self.recvData.split(const.DELIMITER)
-            print('receive data: {}'.format(temp))
+            print('receive data: {}'.format(self.recvData))
             ACKnum = int(temp[1])
             # done
             if ACKnum == const.JOBDONE:
@@ -177,10 +185,12 @@ class Send(object):
             # update rwnd
             self.rwnd = int(temp[3])
             print(ACKnum)
-            print(ACKnum == const.UPDATERWND)
             if ACKnum == const.UPDATERWND:
                 print("update ACKnum\n")
+                # set lock
+                self.lock.acquire()
                 self.send = True
+                self.lock.release()
                 print("rwnd: {}, send: {}".format(self.rwnd, self.send))
                 continue
 
@@ -216,9 +226,12 @@ class Send(object):
                     self.congestionState = const.C_CAVOID
                 else:
                     self.cwnd += 1
+                    # set lock
+                    self.lock.acquire()
                     self.send = True
+                    self.lock.release()
             print("cwnd: {}, ssthresh: {}".format(self.cwnd, self.ssthresh))
 
-test = Send('127.0.0.1', 5555, True, 10)
-test.openFile("C:/DownloadSoftware/LearningMaterials/EP03End.mp4")
+test = Send('127.0.0.1', 1111, True, 10)
+test.openFile("D:/AIChinese.pdf")
 test.Start()

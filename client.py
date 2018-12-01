@@ -64,8 +64,11 @@ class Receive(object):
     def receiveData(self):
         while True:
             # if have buffer to get data
-            self.rwnd = self.receiveBuffer - (self.lastRcvd - self.lastRead)
-            if self.rwnd == 0:
+            #set lock
+            self.lock.acquire()
+            rwnd = self.receiveBuffer - (self.lastRcvd - self.lastRead)
+            self.lock.release()
+            if rwnd == 0:
                 continue
             # get data
             # if self.server:
@@ -74,14 +77,19 @@ class Receive(object):
             #     self.recvData = self.sc.recv(2 * const.MMS)
             temp = self.recvData.split(const.DELIMITER)
             if temp[0] == ' ':
+                #set lock
+                self.lock.acquire()
                 resData = "ACK" + const.DELIMITER + str(const.UPDATERWND) + const.DELIMITER + "rwndSize" + const.DELIMITER + str(self.rwnd)
+                self.lock.release()
                 self.sc.sendto(resData, self.sendAddr)
                 print("update rwnd for server")
+                print(resData)
                 continue
             if self.ACK + 1 == int(temp[0]):
-                # self.lock.acquire()
+                #set lock
+                self.lock.acquire()
                 self.receiverQueue.append(temp[1])
-                # self.lock.release()
+                self.lock.release()
                 self.lastRcvd += 1
                 self.ACK += 1
                 if int(temp[2]) == const.JOBDONE:
@@ -91,9 +99,12 @@ class Receive(object):
                     self.done = True
                     break
             # response
-            self.rwnd = self.receiveBuffer - (self.lastRcvd - self.lastRead)
+            #set lock
+            self.lock.acquire()
+            # rwnd = self.receiveBuffer - (self.lastRcvd - self.lastRead)
             print("lastRcvd: {}, lastRead: {}".format(self.lastRcvd, self.lastRead))
-            resData = "ACK" + const.DELIMITER + str(self.ACK) + const.DELIMITER + "rwndSize" + const.DELIMITER + str(self.rwnd)
+            self.lock.release()
+            resData = "ACK" + const.DELIMITER + str(self.ACK) + const.DELIMITER + "rwndSize" + const.DELIMITER + str(rwnd)
             self.sc.sendto(resData, self.sendAddr)
             print("response: {}".format(resData))
 
@@ -102,13 +113,14 @@ class Receive(object):
         try:
             while True:
                 time.sleep(0.1)
-                # self.lock.acquire()
+                #set lock
+                self.lock.acquire()
                 while len(self.receiverQueue) > 0:
                     self.file.write(self.receiverQueue[0])
                     self.lastRead += 1
                     del self.receiverQueue[0]
                     print("receiverQueueSize: {}, lastRead: {}".format(len(self.receiverQueue), self.lastRead))
-                # self.lock.release()
+                self.lock.release()
                 if self.done:
                     print("All data has benn received. Close Connection.")
                     break
@@ -126,6 +138,6 @@ class Receive(object):
 # s.sendto(b'10', ('127.0.0.1', 9999))
 # print(s.recv(1024).decode('utf-8'))
 
-test = Receive('127.0.0.1', 5555, False, 10)
-test.openFile('EP03End.mp4')
+test = Receive('127.0.0.1', 1111, False, 10)
+test.openFile('AIChinese.pdf')
 test.Start()
