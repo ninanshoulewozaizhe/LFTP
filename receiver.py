@@ -45,7 +45,7 @@ class Receive(object):
             # print(rwndData.decode('utf-8'))
             # print(addr)
         else:
-            message = "LTFP lget " + str(self.sendAddr[0]) + " " + filepath
+            message = "LFTP lget " + str(self.sendAddr[0]) + " " + filepath
             self.sc.sendto(message, self.sendAddr)
             data, self.sendAddr = self.sc.recvfrom(const.MSS)
             if cmp(data.decode('utf-8'), 'server prepares to send data') == 0:

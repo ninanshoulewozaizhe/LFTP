@@ -4,8 +4,8 @@ from sender import Send
 from receiver import Receive
 import sys
 
-# data : 'LTFP lget myserver mylargefile'
-# data : 'LTFP lsend myserver mylargefile'
+# data : 'LFTP lget myserver mylargefile'
+# data : 'LFTP lsend myserver mylargefile'
 
 # client receive
 if sys.argv[2] == 'lget':
