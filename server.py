@@ -23,8 +23,7 @@ sc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 sc.bind(('127.0.0.1', 9999))
 print ('Bind UDP on 9999')
 
-# data : 'LTFP lget myserver mylargefile'
-# data : 'LTFP lsend myserver mylargefile'
+
 while True:
     data, addr = sc.recvfrom(const.MSS)
     temp = data.split(' ')
