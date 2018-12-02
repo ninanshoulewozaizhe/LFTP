@@ -14,7 +14,7 @@ class Const(object):
         self.__dict__[name] = value
 
 const = Const()
-const.MMS = 50000
+const.MSS = 50000
 const.DELIMITER = '|-|:|:|-|'
 
 const.C_SLOWSTART = 0
@@ -23,3 +23,9 @@ const.C_FASTRECOVERY = 2
 
 const.UPDATERWND = -1
 const.JOBDONE = -2
+
+
+# get data format: ACKnum||data||endReading
+# send data format: ACK||ACKnum||rwndSize||rwnd
+# server want to update rwnd format:  ' '
+# receiver send rwnd back: ACK||-1||rwndSize||rwnd
