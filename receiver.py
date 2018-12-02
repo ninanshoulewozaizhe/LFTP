@@ -127,7 +127,7 @@ class Receive(object):
     def storeData(self):
         try:
             while True:
-                time.sleep(0.1)
+                time.sleep(0.01)
                 #set lock
                 self.lock.acquire()
                 while len(self.receiverQueue) > 0:

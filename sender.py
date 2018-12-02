@@ -34,8 +34,8 @@ class Send(object):
         else:
             print("You didn't open a file before.")
 
-    def Start(self, filename):
-        self.openFile(filename)
+    def Start(self, filepath):
+        self.openFile(filepath)
         if not self.fileOpen:
             print("You haven't set the path of file yet.")
             return
@@ -43,7 +43,7 @@ class Send(object):
         if self.server:
             message = "server prepares to send data"
         else:
-            message = "LFTP lsend 127.0.0.1 " + filename
+            message = "LFTP lsend 127.0.0.1 " + filepath
             # self.count = 0
             # while True:
             #     if self.count < 4:
@@ -157,11 +157,11 @@ class Send(object):
         # change congestion state
         if not fastRecover:
             self.congestionState = const.C_SLOWSTART
-            if self.cwnd < 10:
-                self.ssthresh = 5.0
+            if self.cwnd < 2:
+                self.ssthresh = 1.0
             else:
                 self.ssthresh = self.cwnd / 2
-            self.cwnd = 5.0
+            self.cwnd = 1.0
             self.dupACKcount = 0
         self.lock.release()
     
@@ -187,9 +187,9 @@ class Send(object):
         if self.dupACKcount == 3:
             # set lock
             self.lock.acquire()
-            if self.cwnd < 10:
-                self.ssthresh = 5.0
-                self.cwnd = 8.0
+            if self.cwnd < 2:
+                self.ssthresh = 1.0
+                self.cwnd = 1.0
             else:
                 self.ssthresh = self.cwnd / 2
                 self.cwnd = self.cwnd / 2 + 3
