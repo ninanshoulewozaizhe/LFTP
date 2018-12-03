@@ -10,11 +10,11 @@ from constant import const
 
 
 def send(port, filepath, addr):
-    sender = Send('127.0.0.1', port, addr, True, 10)
+    sender = Send('127.0.0.1', port, addr, True, 20)
     sender.Start(filepath)
 
 def receive(port, filepath, addr):
-    receiver = Receive('127.0.0.1', port, addr, True, 10)
+    receiver = Receive('127.0.0.1', port, addr, True, 20)
     receiver.Start(filepath)
 
 

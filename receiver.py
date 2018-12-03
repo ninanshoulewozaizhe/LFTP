@@ -17,7 +17,6 @@ class Receive(object):
         self.fileOpen = False
         if server:
             self.sc.bind((host, port))
-            # print ('Bind UDP on %d' % port)
         else:
             self.sendAddr = (host, port)
     
@@ -42,8 +41,6 @@ class Receive(object):
         if self.server:
             self.sc.sendto(b'%d' % self.receiveBuffer, self.sendAddr)
             print('server prepares to receive data')
-            # print(rwndData.decode('utf-8'))
-            # print(addr)
         else:
             message = "LFTP lget " + str(self.sendAddr[0]) + " " + filepath
             self.sc.sendto(message, self.sendAddr)
@@ -83,7 +80,7 @@ class Receive(object):
             # get data
             self.recvData, self.sendAddr = self.sc.recvfrom(2 * const.MSS)
             
-            # #drop packet test
+            # drop packet test
             # rand = np.random.random()
             # if rand > 0.9:
             #     print("drop the packet test, the rand is {}".format(rand))
@@ -102,6 +99,7 @@ class Receive(object):
             sendACK = (int(temp[0]))
             if self.ACK + 1 == sendACK:
                 #set lock
+                print('get ACK: {}'.format(sendACK))
                 self.lock.acquire()
                 self.receiverQueue.append(temp[1])
                 self.lock.release()
@@ -117,7 +115,7 @@ class Receive(object):
             #set lock
             self.lock.acquire()
             rwnd = self.receiveBuffer - (self.lastRcvd - self.lastRead)
-            print("lastRcvd: {}, lastRead: {}".format(self.lastRcvd, self.lastRead))
+            # print("lastRcvd: {}, lastRead: {}".format(self.lastRcvd, self.lastRead))
             resData = "ACK" + const.DELIMITER + str(sendACK) + const.DELIMITER + "rwndSize" + const.DELIMITER + str(rwnd)
             self.lock.release()
             self.sc.sendto(resData, self.sendAddr)
@@ -134,7 +132,7 @@ class Receive(object):
                     self.file.write(self.receiverQueue[0])
                     self.lastRead += 1
                     del self.receiverQueue[0]
-                    print("receiverQueueSize: {}, lastRead: {}".format(len(self.receiverQueue), self.lastRead))
+                    # print("receiverQueueSize: {}, lastRead: {}".format(len(self.receiverQueue), self.lastRead))
                 self.lock.release()
                 if self.done:
                     print("All data has benn received. Close Connection.")

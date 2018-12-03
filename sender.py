@@ -16,10 +16,6 @@ class Send(object):
         self.sendAddr = addr
         if server:
             self.sc.bind((host, port))
-            # print ('Bind UDP on %d' % port)
-        # else:
-        #     self.sendAddr = (host, port)
-
         
     def openFile(self, filepath):
         try:
@@ -44,26 +40,11 @@ class Send(object):
             message = "server prepares to send data"
         else:
             message = "LFTP lsend 127.0.0.1 " + filepath
-            # self.count = 0
-            # while True:
-            #     if self.count < 4:
-            #         rwndData, self.sendAddr = self.listenSc.recvfrom(const.MSS)
-            #         # self.sendAddr = addr
-            #         self.rwnd = int(rwndData.decode('utf-8'))
-            #         self.count += 1
-            #         pr = Process(target=self.InitialAndStartThreads)
-            #         pr.start()
-            #         pr.join()
-            #         self.count -= 1
         self.sc.sendto(message, self.sendAddr)
         rwndData, self.sendAddr = self.sc.recvfrom(const.MSS)
         self.rwnd = int(rwndData.decode('utf-8'))
 
         self.InitialAndStartThreads()
-        # else:
-        #     self.sc.sendto(b'LFTP lsend 127.0.0.1 EP03End.mp4', self.sendAddr)
-        #     rwndData = self.sc.recv(const.MSS)
-        #     self.rwnd = int(rwndData.decode('utf-8'))
     
     def InitialAndStartThreads(self):
         # initial
@@ -73,7 +54,7 @@ class Send(object):
         self.queueNextNum = 0
         self.endReading = 0
 
-        self.cwnd = 5.0
+        self.cwnd = 1.0
         self.ssthresh = 50.0
         self.send = True
         self.timecancel = True
@@ -104,10 +85,9 @@ class Send(object):
             send = self.send
             self.lock.release()
             # print("before send: rwnd: {} cwnd: {}".format(self.rwnd, self.cwnd))
-            # print("send is {}".format(str(send)))
             if sendSize == 0:
                 self.sc.sendto(' ', self.sendAddr)
-                print("rwnd is 0, send a small MSS to get new rwnd")
+                # print("\nrwnd is 0, send a small message to get new rwnd")
                 time.sleep(0.01)
             elif send:
                 for size in range(int(sendSize)):
@@ -115,13 +95,12 @@ class Send(object):
                     # flow control
                     if self.queueNextNum < self.queueBase + self.windowSize and self.queueNextNum - self.queueBase < self.rwnd:
                         data = self.file.read(const.MSS)
-                        # print("read data {}: {} ,data length: {}".format(self.queueNextNum, data, len(data)))
                         if len(data) < const.MSS:
                             print("end reading")
                             self.endReading = const.JOBDONE
                         # send the queueNum + data
                         data = str(self.queueNextNum) + const.DELIMITER + data + const.DELIMITER + str(self.endReading)
-                        print("\nsend ACK: {} ".format(self.queueNextNum))
+                        # print("\nsend ACK: {} ".format(self.queueNextNum))
                         # set lock
                         self.lock.acquire()
                         self.sc.sendto(data, self.sendAddr)
@@ -143,16 +122,16 @@ class Send(object):
         self.file.close()
 
     def Resend(self, fastRecover):
-        print("resend")
         if not fastRecover:
             print("time out")
+        print("resend")
         self.timerStart(self.timecancel)
         # set lock
         self.lock.acquire()
-        print(len(self.sendQueue))
+        # print(len(self.sendQueue))
         for data in self.sendQueue:
             temp = data.split(const.DELIMITER)
-            print("send ACK:{} endreading:{}".format(temp[0], temp[2]))
+            print("resend ACK: {} ".format(temp[0]))
             self.sc.sendto(data, self.sendAddr)
         # change congestion state
         if not fastRecover:
@@ -163,12 +142,14 @@ class Send(object):
                 self.ssthresh = self.cwnd / 2
             self.cwnd = 1.0
             self.dupACKcount = 0
+            print("change state to slow fast")
+            print("cwnd: {} ssthresh: {}".format(self.cwnd, self.ssthresh))
         self.lock.release()
     
     def getNewACK(self):
         # set lock
         print("get newACK")
-        print(len(self.sendQueue))
+        # print(len(self.sendQueue))
         self.lock.acquire()
         del self.sendQueue[0]
         self.queueBase += 1
@@ -182,7 +163,7 @@ class Send(object):
             self.timerStart(self.timecancel)
         
     def getDupACK(self):
-        print("get dupACK")
+        print("get dupACK: {}".format(self.dupACKcount + 1))
         self.dupACKcount += 1
         if self.dupACKcount == 3:
             # set lock
@@ -196,6 +177,8 @@ class Send(object):
             self.lock.release()
             self.Resend(True)
             self.congestionState = const.C_FASTRECOVERY
+            print("change state to fast recovery")
+            print("cwnd: {} ssthresh: {}".format(self.cwnd, self.ssthresh))
 
     def receiveData(self):
         while True:
@@ -205,7 +188,7 @@ class Send(object):
             # else:
             #     self.recvData = self.sc.recv(const.MSS)
             temp = self.recvData.split(const.DELIMITER)
-            print('receive data: {}'.format(self.recvData))
+            # print('receive data: {}'.format(self.recvData))
             ACKnum = int(temp[1])
             # done
             if ACKnum == const.JOBDONE:
@@ -216,38 +199,42 @@ class Send(object):
 
             # update rwnd
             self.rwnd = int(temp[3])
-            print(ACKnum)
+            # print("get the size of rwnd is : {}".format(self.rwnd))
             if ACKnum == const.UPDATERWND:
-                print("update ACKnum")
+                # print("update ACKnum")
                 # set lock
                 self.lock.acquire()
                 self.send = True
                 self.lock.release()
-                print("rwnd: {}, send: {}".format(self.rwnd, self.send))
+                # print("rwnd: {}, send: {}".format(self.rwnd, self.send))
                 continue
 
             # congestion control   
             # slow-fast
-            print("congestionState: {}".format(self.congestionState))
             if self.congestionState == const.C_SLOWSTART:
+                print("now congestion state: slow fast")
                 if ACKnum == self.queueBase:
                     self.getNewACK()
                     #set lock
                     self.lock.acquire()
                     self.send = True
                     # update cwnd
-                    if self.cwnd + 1 < self.ssthresh:
-                        self.cwnd += 1
-                    else:
-                        self.cwnd = self.ssthresh
+                    if self.cwnd < self.ssthresh:
+                        if self.cwnd + 1 <= self.ssthresh:
+                            self.cwnd += 1
+                        else:
+                            self.cwnd = self.ssthresh
+                    if self.cwnd >= self.ssthresh:
+                        print("change state to congestion avoid")
                         self.congestionState = const.C_CAVOID
                     self.lock.release()
-                    print("update cwnd: {}".format(self.cwnd))
+                    print("cwnd: {} ssthresh: {}".format(self.cwnd, self.ssthresh))
                 else:
                     self.getDupACK()
 
             # congestion-avoid
             elif self.congestionState == const.C_CAVOID:
+                print("now congestion state: congestion avoid")
                 if ACKnum == self.queueBase:
                     self.getNewACK()
                     #set lock
@@ -258,9 +245,12 @@ class Send(object):
                     self.lock.release()
                 else:
                     self.getDupACK()
+                print("cwnd: {} ssthresh: {}".format(self.cwnd, self.ssthresh))
+                
 
             # fast-recovery
             else:
+                print("now congestion state: fast recovery")
                 if ACKnum == self.queueBase:
                     self.getNewACK()
                     # set lock
@@ -268,10 +258,11 @@ class Send(object):
                     self.cwnd = self.ssthresh
                     self.lock.release()
                     self.congestionState = const.C_CAVOID
+                    print("change state to congestion avoid")
                 else:
                     # set lock
                     self.lock.acquire()
                     self.cwnd += 1
                     self.send = True
                     self.lock.release()
-            print("cwnd: {}, ssthresh: {}".format(self.cwnd, self.ssthresh))
+                print("cwnd: {}, ssthresh: {}".format(self.cwnd, self.ssthresh))
