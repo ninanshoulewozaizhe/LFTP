@@ -24,6 +24,8 @@ const.C_FASTRECOVERY = 2
 const.UPDATERWND = -1
 const.JOBDONE = -2
 
+const.HOST = "127.0.0.1"
+const.PORT =  9999
 
 # get data format: ACKnum||data||endReading
 # send data format: ACK||ACKnum||rwndSize||rwnd

@@ -10,18 +10,18 @@ from constant import const
 
 
 def send(port, filepath, addr):
-    sender = Send('127.0.0.1', port, addr, True, 20)
+    sender = Send(const.HOST, port, addr, True, 20)
     sender.Start(filepath)
 
 def receive(port, filepath, addr):
-    receiver = Receive('127.0.0.1', port, addr, True, 20)
+    receiver = Receive(const.HOST, port, addr, True, 20)
     receiver.Start(filepath)
 
 
 sendPort = 1000
 sc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-sc.bind(('127.0.0.1', 9999))
-print ('Bind UDP on 9999')
+sc.bind((const.HOST, const.PORT))
+print ('Bind UDP on {}'.format(const.PORT))
 
 
 while True:
