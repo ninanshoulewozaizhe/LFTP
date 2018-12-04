@@ -3,6 +3,8 @@
 计网Project-基于UDP实现可靠传输、拥塞机制、流量控制、一对多
 
 ## 使用方式注意事项：
+  
+   首先使用`python server.py`打开服务端，再用以下方式运行客户端。
 
    1. 客户端运行文件时需在文件后面输入 `LFTP lget myserver mylargefile` 或者 `LFTP lsend myserver mylargefile`，
 
